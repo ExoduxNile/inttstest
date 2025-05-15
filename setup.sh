@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# setup.sh - Index-TTS setup with Python 3.11
+# setup.sh - Index-TTS setup with Python 3.10
 
 set -e  # Exit on error
 
 # Configuration
-REQUIRED_PYTHON_VERSION="3.11"
+REQUIRED_PYTHON_VERSION="3.10"
 MODEL_FILES=(
     "bigvgan_discriminator.pth"
     "bigvgan_generator.pth"
@@ -18,34 +18,24 @@ REPO_URL="https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main"
 
 echo "=== Setting up Index-TTS with Python $REQUIRED_PYTHON_VERSION ==="
 
-# Install Python 3.11
-echo "Installing Python $REQUIRED_PYTHON_VERSION..."
-sudo apt-get update
-sudo apt-get install -y \
-    software-properties-common \
-    build-essential \
-    zlib1g-dev \
-    libncurses5-dev \
-    libgdbm-dev \
-    libnss3-dev \
-    libssl-dev \
-    libreadline-dev \
-    libffi-dev \
-    libsqlite3-dev \
-    wget
+# Install Python 3.10 if not available
+if ! command -v python$REQUIRED_PYTHON_VERSION &> /dev/null; then
+    echo "Installing Python $REQUIRED_PYTHON_VERSION..."
+    sudo apt-get update
+    sudo apt-get install -y \
+        software-properties-common
+    sudo add-apt-repository -y ppa:deadsnakes/ppa
+    sudo apt-get update
+    sudo apt-get install -y \
+        python$REQUIRED_PYTHON_VERSION \
+        python$REQUIRED_PYTHON_VERSION-venv \
+        python$REQUIRED_PYTHON_VERSION-dev
+fi
 
-sudo add-apt-repository -y ppa:deadsnakes/ppa
-sudo apt-get update
-sudo apt-get install -y \
-    python3.11 \
-    python3.11-dev \
-    python3.11-venv \
-    python3.11-distutils
-
-# Set Python 3.11 as default
-sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
-sudo update-alternatives --set python3 /usr/bin/python3.11
-sudo ln -fs /usr/bin/python3.11 /usr/bin/python
+# Create and activate virtual environment
+echo "Creating Python $REQUIRED_PYTHON_VERSION virtual environment..."
+python$REQUIRED_PYTHON_VERSION -m venv venv
+source venv/bin/activate
 
 # Install system dependencies
 echo "Installing system packages..."
@@ -53,31 +43,16 @@ sudo apt-get install -y \
     wget \
     ffmpeg
 
-# Create and activate virtual environment
-echo "Creating Python $REQUIRED_PYTHON_VERSION virtual environment..."
-python3.11 -m venv venv
-source venv/bin/activate
+# Ensure pip is up to date
+python -m pip install --upgrade pip
 
-# Install pip for Python 3.11
-curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
-python -m pip install --upgrade pip setuptools wheel
-
-# Install PyTorch with compatible versions for Python 3.11
+# Install PyTorch for CPU
 echo "Installing PyTorch..."
-pip install \
-    torch==2.2.1 \
-    torchaudio==2.2.1 \
-    --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.0.1 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cpu
 
-# Install project dependencies with version constraints
+# Install project dependencies
 echo "Installing project requirements..."
-pip install \
-    "numba>=0.58,<0.59" \  # Version that supports Python 3.11
-    "numpy>=1.26,<2.0" \   # Modern numpy version
-    -r requirements.txt
-
-# Install the package with webui extras
-echo "Installing Index-TTS package..."
+pip install -r requirements.txt
 pip install -e ".[webui]"
 
 # Download model files
@@ -86,7 +61,7 @@ mkdir -p checkpoints
 for file in "${MODEL_FILES[@]}"; do
     if [ ! -f "checkpoints/${file}" ]; then
         echo "Downloading ${file}..."
-        wget "${REPO_URL}/${file}" -P checkpoints
+        wget "${REPO_URL}/${file}" -P checkpoints || echo "Failed to download ${file}, continuing..."
     else
         echo "Found checkpoints/${file} - skipping download"
     fi
@@ -94,7 +69,7 @@ done
 
 # Install production server
 echo "Installing production server..."
-pip install "gunicorn==21.2.0" "uvicorn==0.29.0"
+pip install gunicorn uvicorn
 
 # Display version information
 echo -e "\n=== Setup complete ==="
@@ -103,7 +78,7 @@ echo "Python version: $(python --version)"
 echo "Pip version: $(pip --version)"
 echo "Virtual environment: $(which python)"
 echo -e "\nKey packages:"
-pip list --format=columns | grep -E "torch|gradio|gunicorn|uvicorn|numba|numpy"
+pip list --format=columns | grep -E "torch|gradio|gunicorn|uvicorn"
 
 echo -e "\nTo run the web UI:"
 echo "1. Activate virtual environment:"
