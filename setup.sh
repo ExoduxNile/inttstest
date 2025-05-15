@@ -72,13 +72,20 @@ done
 echo "Installing production server..."
 pip install gunicorn
 
+# Display version information at the end
 echo -e "\n=== Setup complete ==="
+echo -e "\nVersion Information:"
+echo "Python version: $(python --version)"
+echo "Pip version: $(pip --version)"
+echo "Installed packages:"
+pip list --format=columns | grep -E "torch|gradio|gunicorn"
+
 echo -e "\nTo run the web UI:"
 echo "1. Activate virtual environment:"
 echo "   source venv/bin/activate"
 echo "2. Run the development server:"
 echo "   python webui.py"
 echo -e "\nOr for production use:"
-echo "   gunicorn -b 0.0.0.0:8080 -w 4 -k uvicorn.workers.UvicornWorker webui:app"
+echo "   gunicorn -b 0.0.0.0:\${PORT:-8080} -w 4 -k uvicorn.workers.UvicornWorker webui:app"
 echo -e "\nNote: You may need to modify webui.py to expose a proper ASGI application"
 echo "if you want to use uvicorn directly."

@@ -34,8 +34,9 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "indextts = webui.py:main",
+            "indextts = indextts.cli:main",
         ]
+    },
     },
     license="Apache-2.0",
     python_requires=">=3.10",
