@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# setup.sh - Index-TTS setup with Python 3.10 for Google Cloud
+# setup.sh - Index-TTS setup with Python 3.10
 
 set -e  # Exit on error
 
 # Configuration
-REQUIRED_PYTHON_VERSION="3.10"
+REQUIRED_PYTHON_VERSION="3.10.13"
 MODEL_FILES=(
     "bigvgan_discriminator.pth"
     "bigvgan_generator.pth"
@@ -18,49 +18,48 @@ REPO_URL="https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main"
 
 echo "=== Setting up Index-TTS with Python $REQUIRED_PYTHON_VERSION ==="
 
-# Check system Python version
-CURRENT_PYTHON_VERSION=$(python3 --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1-2)
-echo "Detected Python version: $CURRENT_PYTHON_VERSION"
+# Remove any existing Python 3.13 symlinks that might interfere
+sudo rm -f /usr/bin/python3
+sudo rm -f /usr/bin/python
 
-# Install Python 3.10 if not available or if default is different
-if [ "$CURRENT_PYTHON_VERSION" != "$REQUIRED_PYTHON_VERSION" ]; then
-    echo "Installing Python $REQUIRED_PYTHON_VERSION..."
-    sudo apt-get update
-    sudo apt-get install -y \
-        software-properties-common \
-        build-essential \
-        zlib1g-dev \
-        libncurses5-dev \
-        libgdbm-dev \
-        libnss3-dev \
-        libssl-dev \
-        libreadline-dev \
-        libffi-dev \
-        libsqlite3-dev \
-        wget
-    
-    # Install Python 3.10 from source
-    PYTHON_SRC_URL="https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tgz"
-    wget $PYTHON_SRC_URL
-    tar -xf Python-3.10.13.tgz
-    cd Python-3.10.13
-    ./configure --enable-optimizations
-    make -j $(nproc)
-    sudo make altinstall
-    cd ..
-    rm -rf Python-3.10.13*
-fi
+# Install Python 3.10 from deadsnakes PPA
+echo "Installing Python $REQUIRED_PYTHON_VERSION..."
+sudo apt-get update
+sudo apt-get install -y \
+    software-properties-common \
+    build-essential \
+    zlib1g-dev \
+    libncurses5-dev \
+    libgdbm-dev \
+    libnss3-dev \
+    libssl-dev \
+    libreadline-dev \
+    libffi-dev \
+    libsqlite3-dev \
+    wget
 
-# Verify Python 3.10 installation
-echo "Verifying Python installation..."
-python3.10 --version || { echo "Python 3.10 installation failed"; exit 1; }
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt-get update
+sudo apt-get install -y \
+    python3.10 \
+    python3.10-dev \
+    python3.10-venv \
+    python3.10-distutils
+
+# Set Python 3.10 as default
+sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+sudo update-alternatives --set python3 /usr/bin/python3.10
+sudo ln -fs /usr/bin/python3.10 /usr/bin/python
+
+# Verify Python version
+echo "Python version after installation:"
+python3 --version
 
 # Install system dependencies
 echo "Installing system packages..."
 sudo apt-get install -y \
     wget \
-    ffmpeg \
-    python3-pip
+    ffmpeg
 
 # Create and activate virtual environment
 echo "Creating Python $REQUIRED_PYTHON_VERSION virtual environment..."
@@ -68,15 +67,25 @@ python3.10 -m venv venv
 source venv/bin/activate
 
 # Ensure pip is up to date
-python -m pip install --upgrade pip
+curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
+python -m pip install --upgrade pip setuptools wheel
 
-# Install PyTorch for CPU (adjust if you need GPU support)
-echo "Installing PyTorch..."
-pip install torch==2.0.1 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cpu
+# Install PyTorch with compatible versions
+echo "Installing PyTorch with compatible dependencies..."
+pip install \
+    torch==2.0.1 \
+    torchaudio==2.0.2 \
+    --index-url https://download.pytorch.org/whl/cpu
 
-# Install project dependencies
-echo "Installing project requirements..."
-pip install -r requirements.txt
+# Install project dependencies with version constraints
+echo "Installing project requirements with version constraints..."
+pip install \
+    "numba<0.58" \
+    "numpy<1.24" \
+    -r requirements.txt
+
+# Install the package with webui extras
+echo "Installing Index-TTS package..."
 pip install -e ".[webui]"
 
 # Download model files
@@ -102,7 +111,7 @@ echo "Python version: $(python --version)"
 echo "Pip version: $(pip --version)"
 echo "Virtual environment: $(which python)"
 echo -e "\nKey packages:"
-pip list --format=columns | grep -E "torch|gradio|gunicorn|uvicorn"
+pip list --format=columns | grep -E "torch|gradio|gunicorn|uvicorn|numba|numpy"
 
 echo -e "\nTo run the web UI:"
 echo "1. Activate virtual environment:"
@@ -111,4 +120,3 @@ echo "2. Run the development server:"
 echo "   python webui.py"
 echo -e "\nFor production (Cloud Run compatible):"
 echo "   gunicorn -b :\$PORT -k uvicorn.workers.UvicornWorker -t 300 webui:app"
-echo -e "\nNote: Ensure webui.py exposes a proper ASGI application for production use."
