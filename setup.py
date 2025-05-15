@@ -39,7 +39,7 @@ setup(
     },
     },
     license="Apache-2.0",
-    python_requires=">=3.12",
+    python_requires=">=3.11",
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",

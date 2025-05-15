@@ -5,7 +5,7 @@
 set -e  # Exit on error
 
 # Configuration
-REQUIRED_PYTHON_VERSION="3.12"
+REQUIRED_PYTHON_VERSION="3.11"
 MODEL_FILES=(
     "bigvgan_discriminator.pth"
     "bigvgan_generator.pth"
@@ -43,9 +43,9 @@ sudo apt-get install -y \
     python3.12-distutils
 
 # Set Python 3.12 as default
-sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
-sudo update-alternatives --set python3 /usr/bin/python3.12
-sudo ln -fs /usr/bin/python3.12 /usr/bin/python
+sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+sudo update-alternatives --set python3 /usr/bin/python3.11
+sudo ln -fs /usr/bin/python3.11 /usr/bin/python
 
 # Install system dependencies
 echo "Installing system packages..."
@@ -59,7 +59,7 @@ python3.12 -m venv venv
 source venv/bin/activate
 
 # Install pip for Python 3.12
-curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
+curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
 python -m pip install --upgrade pip setuptools wheel
 
 # Install PyTorch with compatible versions for Python 3.12
