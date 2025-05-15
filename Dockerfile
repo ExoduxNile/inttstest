@@ -1,45 +1,45 @@
-# Use official slim Python base image
-FROM python:3.10-slim
+# Stage 1: Use slim Python image
+FROM python:3.10-slim as base
 
-# Set environment variables
-ENV VIRTUAL_ENV=/opt/venv
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+# Environment setup
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-
-# Set working directory
+ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
-# Install system dependencies
+# Install OS dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    git \
-    wget \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    ffmpeg git wget build-essential \
+ && rm -rf /var/lib/apt/lists/*
 
-# Create virtual environment
-RUN python -m venv $VIRTUAL_ENV
-
-# Copy the repo code into container
-COPY . /app
+# Copy source code
+COPY . .
 
 # Install Python dependencies
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
-RUN pip install -e ".[webui]"
+RUN pip install --upgrade pip \
+ && pip install -r requirements.txt \
+ && pip install -e ".[webui]" \
+ && rm -rf ~/.cache/pip /root/.cache /tmp/*
 
-# Download model checkpoints
-RUN mkdir -p /app/checkpoints && \
-    wget https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/bigvgan_discriminator.pth -P /app/checkpoints && \
-    wget https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/bigvgan_generator.pth -P /app/checkpoints && \
-    wget https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/bpe.model -P /app/checkpoints && \
-    wget https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/dvae.pth -P /app/checkpoints && \
-    wget https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/gpt.pth -P /app/checkpoints && \
-    wget https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/unigram_12000.vocab -P /app/checkpoints
-
-# Expose port for Cloud Run
+# Expose the port Cloud Run uses
 EXPOSE 8080
 
-# Start the web UI app using gunicorn
-CMD exec gunicorn webui:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4
+# On container start, download checkpoints if missing
+CMD python -c "\
+import os, subprocess; \
+os.makedirs('checkpoints', exist_ok=True); \
+urls = { \
+  'bigvgan_discriminator.pth': 'https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/bigvgan_discriminator.pth', \
+  'bigvgan_generator.pth': 'https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/bigvgan_generator.pth', \
+  'bpe.model': 'https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/bpe.model', \
+  'dvae.pth': 'https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/dvae.pth', \
+  'gpt.pth': 'https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/gpt.pth', \
+  'unigram_12000.vocab': 'https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main/unigram_12000.vocab' \
+}; \
+[ \
+ subprocess.run(['wget', url, '-O', f'checkpoints/{fname}']) \
+ for fname, url in urls.items() \
+ if not os.path.exists(f'checkpoints/{fname}') \
+]; \
+" && \
+gunicorn webui:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4
