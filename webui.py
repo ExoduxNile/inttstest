@@ -18,12 +18,12 @@ from indextts.utils.webui_utils import next_page, prev_page
 from indextts.infer import IndexTTS
 from tools.i18n.i18n import I18nAuto
 
-i18n = I18nAuto(language="en_US")  # Changed from zh_CN to en_US
+i18n = I18nAuto(language="zh_CN")
 MODE = 'local'
-tts = IndexTTS(model_dir="checkpoints", cfg_path="checkpoints/config.yaml")
+tts = IndexTTS(model_dir="checkpoints",cfg_path="checkpoints/config.yaml")
 
-os.makedirs("outputs/tasks", exist_ok=True)
-os.makedirs("prompts", exist_ok=True)
+os.makedirs("outputs/tasks",exist_ok=True)
+os.makedirs("prompts",exist_ok=True)
 
 
 def gen_single(prompt, text, infer_mode, progress=gr.Progress()):
@@ -32,11 +32,11 @@ def gen_single(prompt, text, infer_mode, progress=gr.Progress()):
         output_path = os.path.join("outputs", f"spk_{int(time.time())}.wav")
     # set gradio progress
     tts.gr_progress = progress
-    if infer_mode == "Normal Inference":
-        output = tts.infer(prompt, text, output_path)  # Normal inference
+    if infer_mode == "普通推理":
+        output = tts.infer(prompt, text, output_path) # 普通推理
     else:
-        output = tts.infer_fast(prompt, text, output_path)  # Batch inference
-    return gr.update(value=output, visible=True)
+        output = tts.infer_fast(prompt, text, output_path) # 批次推理
+    return gr.update(value=output,visible=True)
 
 def update_prompt_audio():
     update_button = gr.update(interactive=True)
@@ -47,27 +47,25 @@ with gr.Blocks() as demo:
     mutex = threading.Lock()
     gr.HTML('''
     <h2><center>IndexTTS: An Industrial-Level Controllable and Efficient Zero-Shot Text-To-Speech System</h2>
-    <h2><center>(An industrial-grade controllable and efficient zero-shot text-to-speech system)</h2>
+    <h2><center>(一款工业级可控且高效的零样本文本转语音系统)</h2>
 
 <p align="center">
 <a href='https://arxiv.org/abs/2502.05512'><img src='https://img.shields.io/badge/ArXiv-2502.05512-red'></a>
     ''')
-    with gr.Tab("Audio Generation"):
+    with gr.Tab("音频生成"):
         with gr.Row():
-            os.makedirs("prompts", exist_ok=True)
-            prompt_audio = gr.Audio(label="Please upload reference audio", key="prompt_audio",
-                                    sources=["upload", "microphone"], type="filepath")
+            os.makedirs("prompts",exist_ok=True)
+            prompt_audio = gr.Audio(label="请上传参考音频",key="prompt_audio",
+                                    sources=["upload","microphone"],type="filepath")
             prompt_list = os.listdir("prompts")
             default = ''
             if prompt_list:
                 default = prompt_list[0]
             with gr.Column():
-                input_text_single = gr.TextArea(label="Please enter target text", key="input_text_single")
-                infer_mode = gr.Radio(choices=["Normal Inference", "Batch Inference"], 
-                                     label="Select inference mode (Batch Inference: Better for long sentences, 2x performance)",
-                                     value="Normal Inference")
-                gen_button = gr.Button("Generate Speech", key="gen_button", interactive=True)
-            output_audio = gr.Audio(label="Generation Result", visible=True, key="output_audio")
+                input_text_single = gr.TextArea(label="请输入目标文本",key="input_text_single")
+                infer_mode = gr.Radio(choices=["普通推理", "批次推理"], label="选择推理模式（批次推理：更适合长句，性能翻倍）",value="普通推理")
+                gen_button = gr.Button("生成语音",key="gen_button",interactive=True)
+            output_audio = gr.Audio(label="生成结果", visible=True,key="output_audio")
 
     prompt_audio.upload(update_prompt_audio,
                          inputs=[],
@@ -79,7 +77,5 @@ with gr.Blocks() as demo:
 
 
 if __name__ == "__main__":
-    #demo.queue(20)@
-    #demo.launch(server_name="127.0.0.1")
-    port = int(os.environ.get("PORT", 8080))
-    demo.queue(10).launch(server_name="0.0.0.0", server_port=port)
+    demo.queue(20)
+    demo.launch(server_name="127.0.0.1")

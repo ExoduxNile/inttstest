@@ -55,10 +55,19 @@ class TextNormalizer:
         }
 
     def match_email(self, email):
+        # 正则表达式匹配邮箱格式：数字英文@数字英文.英文
         pattern = r"^[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]+$"
         return re.match(pattern, email) is not None
 
+    """
+    匹配拼音声调格式：pinyin+数字，声调1-5，5表示轻声
+    例如：xuan4, jve2, ying1, zhong4, shang5
+    """
     PINYIN_TONE_PATTERN = r"([bmnpqdfghjklzcsxwy]?h?[aeiouüv]{1,2}[ng]*|ng)([1-5])"
+    """
+    匹配人名，格式：中文·中文，中文·中文-中文
+    例如：克里斯托弗·诺兰，约瑟夫·高登-莱维特
+    """
     NAME_PATTERN = r"[\u4e00-\u9fff]+([-·—][\u4e00-\u9fff]+){1,2}"
 
     def use_chinese(self, s):
@@ -67,90 +76,140 @@ class TextNormalizer:
         is_email = self.match_email(s)
         if has_chinese or not has_alpha or is_email:
             return True
-        has_pinyin = bool(re.search(self.PINYIN_TONE_PATTERN, s, re.IGNORECASE))
+
+        has_pinyin = bool(re.search(TextNormalizer.PINYIN_TONE_PATTERN, s, re.IGNORECASE))
         return has_pinyin
 
     def load(self):
-        # Use self as fallback normalizer
-        self.zh_normalizer = self
-        self.en_normalizer = self
+        # print(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+        # sys.path.append(model_dir)
+        import platform
+
+        if platform.system() == "Darwin":
+            from wetext import Normalizer
+
+            self.zh_normalizer = Normalizer(remove_erhua=False, lang="zh", operator="tn")
+            self.en_normalizer = Normalizer(lang="en", operator="tn")
+        else:
+            from tn.chinese.normalizer import Normalizer as NormalizerZh
+            from tn.english.normalizer import Normalizer as NormalizerEn
+
+            self.zh_normalizer = NormalizerZh(remove_interjections=False, remove_erhua=False, overwrite_cache=False)
+            self.en_normalizer = NormalizerEn(overwrite_cache=False)
 
     def normalize(self, text: str) -> str:
         if not self.zh_normalizer or not self.en_normalizer:
-            self.load()
-            
+            print("Error, text normalizer is not initialized !!!")
+            return ""
         if self.use_chinese(text):
             replaced_text, pinyin_list = self.save_pinyin_tones(text.rstrip())
+            
             replaced_text, original_name_list = self.save_names(replaced_text)
-            
-            # Use basic normalization
-            result = self.basic_normalize(replaced_text)
-            
+            try:
+                result = self.zh_normalizer.normalize(replaced_text)
+            except Exception:
+                result = ""
+                print(traceback.format_exc())
+            # 恢复人名
             result = self.restore_names(result, original_name_list)
+            # 恢复拼音声调
             result = self.restore_pinyin_tones(result, pinyin_list)
             pattern = re.compile("|".join(re.escape(p) for p in self.zh_char_rep_map.keys()))
             result = pattern.sub(lambda x: self.zh_char_rep_map[x.group()], result)
         else:
-            result = self.basic_normalize(text)
+            try:
+                result = self.en_normalizer.normalize(text)
+            except Exception:
+                result = text
+                print(traceback.format_exc())
             pattern = re.compile("|".join(re.escape(p) for p in self.char_rep_map.keys()))
             result = pattern.sub(lambda x: self.char_rep_map[x.group()], result)
         return result
 
-    def basic_normalize(self, text: str) -> str:
-        """Basic text normalization using regex patterns"""
-        # Normalize whitespace
-        text = re.sub(r'\s+', ' ', text).strip()
-        return text
-
     def correct_pinyin(self, pinyin: str):
+        """
+        将 jqx 的韵母为 u/ü 的拼音转换为 v
+        如：ju -> jv , que -> qve, xün -> xvn
+        """
         if pinyin[0] not in "jqxJQX":
             return pinyin
+        # 匹配 jqx 的韵母为 u/ü 的拼音
         pattern = r"([jqx])[uü](n|e|an)*(\d)"
         repl = r"\g<1>v\g<2>\g<3>"
         pinyin = re.sub(pattern, repl, pinyin, flags=re.IGNORECASE)
         return pinyin.upper()
 
     def save_names(self, original_text):
-        name_pattern = re.compile(self.NAME_PATTERN, re.IGNORECASE)
+        """
+        替换人名为占位符 <n_a>、 <n_b>, ...
+        例如：克里斯托弗·诺兰 -> <n_a>
+        """
+        # 人名
+        name_pattern = re.compile(TextNormalizer.NAME_PATTERN, re.IGNORECASE)
         original_name_list = re.findall(name_pattern, original_text)
         if len(original_name_list) == 0:
             return (original_text, None)
         original_name_list = list(set("".join(n) for n in original_name_list))
         transformed_text = original_text
+        # 替换占位符 <n_a>、 <n_b>, ...
         for i, name in enumerate(original_name_list):
             number = chr(ord("a") + i)
             transformed_text = transformed_text.replace(name, f"<n_{number}>")
+
         return transformed_text, original_name_list
 
     def restore_names(self, normalized_text, original_name_list):
+        """
+        恢复人名为原来的文字
+        例如：<n_a> -> original_name_list[0]
+        """
         if not original_name_list or len(original_name_list) == 0:
             return normalized_text
+
         transformed_text = normalized_text
+        # 替换为占位符 <n_a>、 <n_b>, ...
         for i, name in enumerate(original_name_list):
             number = chr(ord("a") + i)
             transformed_text = transformed_text.replace(f"<n_{number}>", name)
         return transformed_text
 
     def save_pinyin_tones(self, original_text):
-        origin_pinyin_pattern = re.compile(self.PINYIN_TONE_PATTERN, re.IGNORECASE)
+        """
+        替换拼音声调为占位符 <pinyin_a>, <pinyin_b>, ...
+        例如：xuan4 -> <pinyin_a>
+        """
+        # 声母韵母+声调数字
+        origin_pinyin_pattern = re.compile(TextNormalizer.PINYIN_TONE_PATTERN, re.IGNORECASE)
         original_pinyin_list = re.findall(origin_pinyin_pattern, original_text)
         if len(original_pinyin_list) == 0:
             return (original_text, None)
         original_pinyin_list = list(set("".join(p) for p in original_pinyin_list))
         transformed_text = original_text
+        # 替换为占位符 <pinyin_a>, <pinyin_b>, ...
         for i, pinyin in enumerate(original_pinyin_list):
             number = chr(ord("a") + i)
             transformed_text = transformed_text.replace(pinyin, f"<pinyin_{number}>")
+
+        # print("original_text: ", original_text)
+        # print("transformed_text: ", transformed_text)
         return transformed_text, original_pinyin_list
 
     def restore_pinyin_tones(self, normalized_text, original_pinyin_list):
+        """
+        恢复拼音中的音调数字（1-5）为原来的拼音
+        例如：<pinyin_a> -> original_pinyin_list[0]
+        """
         if not original_pinyin_list or len(original_pinyin_list) == 0:
             return normalized_text
+
         transformed_text = normalized_text
+        # 替换占位符 <pinyin_a>, <pinyin_b>, ...
         for i, pinyin in enumerate(original_pinyin_list):
             number = chr(ord("a") + i)
             pinyin = self.correct_pinyin(pinyin)
             transformed_text = transformed_text.replace(f"<pinyin_{number}>", pinyin)
+        # print("normalized_text: ", normalized_text)
+        # print("transformed_text: ", transformed_text)
         return transformed_text
 
 
