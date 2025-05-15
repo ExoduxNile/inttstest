@@ -79,7 +79,7 @@ with gr.Blocks() as demo:
 
 
 if __name__ == "__main__":
-    #demo.queue(20)
+    #demo.queue(20)@
     #demo.launch(server_name="127.0.0.1")
     port = int(os.environ.get("PORT", 8080))
     demo.queue(10).launch(server_name="0.0.0.0", server_port=port)
