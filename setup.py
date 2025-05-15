@@ -27,7 +27,7 @@ setup(
         "sentencepiece",
         "librosa",
         "numpy",
-        "wetext" if platform.system() == "Darwin" else "WeTextProcessing",
+        "WeTextProcessing",
     ],
     extras_require={
         "webui": ["gradio"],

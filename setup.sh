@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# setup.sh - Index-TTS setup with Python 3.12
+# setup.sh - Index-TTS setup with Python 3.11
 
 set -e  # Exit on error
 
@@ -18,7 +18,7 @@ REPO_URL="https://huggingface.co/IndexTeam/IndexTTS-1.5/resolve/main"
 
 echo "=== Setting up Index-TTS with Python $REQUIRED_PYTHON_VERSION ==="
 
-# Install Python 3.12
+# Install Python 3.11
 echo "Installing Python $REQUIRED_PYTHON_VERSION..."
 sudo apt-get update
 sudo apt-get install -y \
@@ -37,12 +37,12 @@ sudo apt-get install -y \
 sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt-get update
 sudo apt-get install -y \
-    python3.12 \
-    python3.12-dev \
-    python3.12-venv \
-    python3.12-distutils
+    python3.11 \
+    python3.11-dev \
+    python3.11-venv \
+    python3.11-distutils
 
-# Set Python 3.12 as default
+# Set Python 3.11 as default
 sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 sudo update-alternatives --set python3 /usr/bin/python3.11
 sudo ln -fs /usr/bin/python3.11 /usr/bin/python
@@ -55,14 +55,14 @@ sudo apt-get install -y \
 
 # Create and activate virtual environment
 echo "Creating Python $REQUIRED_PYTHON_VERSION virtual environment..."
-python3.12 -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate
 
-# Install pip for Python 3.12
+# Install pip for Python 3.11
 curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
 python -m pip install --upgrade pip setuptools wheel
 
-# Install PyTorch with compatible versions for Python 3.12
+# Install PyTorch with compatible versions for Python 3.11
 echo "Installing PyTorch..."
 pip install \
     torch==2.2.1 \
@@ -72,7 +72,7 @@ pip install \
 # Install project dependencies with version constraints
 echo "Installing project requirements..."
 pip install \
-    "numba>=0.58,<0.59" \  # Version that supports Python 3.12
+    "numba>=0.58,<0.59" \  # Version that supports Python 3.11
     "numpy>=1.26,<2.0" \   # Modern numpy version
     -r requirements.txt
 
