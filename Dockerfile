@@ -42,4 +42,4 @@ urls = { \
  if not os.path.exists(f'checkpoints/{fname}') \
 ]; \
 " && \
-gunicorn webui:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4
+gunicorn webui:app --bind 0.0.0.0:${PORT:-7860} --workers 1 --threads 4
