@@ -78,4 +78,8 @@ with gr.Blocks() as demo:
 
 if __name__ == "__main__":
     demo.queue(20)
-    demo.launch(server_name="127.0.0.1")
+    demo.launch(
+        server_name="0.0.0.0",  # Allow all network interfaces
+        server_port=8080,       # Standard web port
+        share=False             # Don't create gradio share link
+    )
