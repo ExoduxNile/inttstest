@@ -76,10 +76,10 @@ with gr.Blocks() as demo:
                      outputs=[output_audio])
 
 
-if __name__ == "__main__":
-    demo.queue(20)
-    demo.launch(
-        server_name="0.0.0.0",  # Allow all network interfaces
-        server_port=int(os.environ.get("PORT", 7860)),  # Use dynamic port from Cloud Run
-        share=False             # Don't create gradio share link
-    )
+#if __name__ == "__main__":
+ #   demo.queue(20)
+  #  demo.launch(
+   #     server_name="0.0.0.0",  # Allow all network interfaces
+    #    server_port=int(os.environ.get("PORT", 7860)),  # Use dynamic port from Cloud Run
+     #   share=False             # Don't create gradio share link
+    #)
